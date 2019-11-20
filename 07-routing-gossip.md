@@ -804,7 +804,7 @@ to be dictated by the specification.
     * [`u32`:`number_of_channels`]
     * [`u32`:`number_of_channel_updates`]
     * [`u32`:`number_of_node_announcements`]
-    * [`u32`:`block_number`]
+    * [`u32`:`block_height`]
     * [`u16`:`sketch_len`]
     * [`sketch_len*byte`:`sketch`]
     * [`u16`:`num_raw`]
@@ -825,7 +825,7 @@ about each channel in the following manner:
 
 1. The LSB is 0 for short-form, 1 for long-form.
 2. The next lowest N1 bits encode the block height.  N1 is the minimum number of bits to
-   encode `block_number`, eg. 591617 gives N1 of 20 bits.
+   encode `block_height`, eg. 591617 gives N1 of 20 bits.
 3. For short-form encoding:
     1. The next lowest N2=15 bits encode the transaction index within the block.
     2. The next lowest N3=6 bits encode the output index.
@@ -843,26 +843,31 @@ The timestamps are encoded into N bits as follows:
 1. if there is no `channel_update` or `node_announcement`, the encoding is N one bits.
 2. otherwise, the encoding is `timestamp % ((2^N) - 1)`.
 
+Note that the encoding depends on the number of bits in the current
+block height, so (very) occasionally the entire minisketch must be
+recalculated.  It is assumed that every channel contains a block number
+less or equal to the current block height.
+
 ### Requirements
 
 The sending node:
     - MUST set `number_of_channels` to the number of entries in `sketch`.
-    - MUST set `number_of_channel_updates` to the number of `channel_update` represented in `sketch`.
-    - MUST set `number_of_node_announcements` to the number of `node_announcement` represented in `sketch`.
+    - MUST set `number_of_channel_updates` to the number of `channel_update` timestamps in `sketch`.
+    - MUST set `number_of_node_announcements` to the number of `node_announcement` timestamps in `sketch`.
 	- MAY set `excluded` to indicate short_channel_ids it knows about but
 	  has not included in `sketch`.
 	- MUST NOT include any `excluded` short_channel_ids in `sketch`.
-    - MUST set `block_number` to the highest block it has processed.
-    - MUST set `sketch` to contain all the encoded channels as follows:
+    - MUST set `block_height` to the highest block it has processed.
+    - MUST set `sketch` and `raw` to contain all the encoded channels as follows:
         - If the transaction index is less than 32768 and the output index
           is less than 64:
-            - MUST encode it using short-form.
+            - MUST encode it using short-form and add it to `sketch`.
         - Otherwise, if the transaction index is less than 2097152 and the
-          output index is less than 4096, and `block_number` is less than
+          output index is less than 4096, and `block_height` is less than
           4194304:
-            - MUST encode it using long-form.
+            - MUST encode it using long-form and add it to `sketch`.
         - Otherwise:
-		    - MUST add it to the `raw` field.
+		    - MUST add it to `raw`.
 
 The receiving node:
    - SHOULD compare the `sketch` and `raw` fields to selectively query
@@ -1091,3 +1096,60 @@ above.
 ![Creative Commons License](https://i.creativecommons.org/l/by/4.0/88x31.png "License CC-BY")
 <br>
 This work is licensed under a [Creative Commons Attribution 4.0 International License](http://creativecommons.org/licenses/by/4.0/).
+
+# Appendix A: `gossip_minisketch` Test Vectors
+
+The minisketch format:
+
+1. Empty `sketch`, capacity 10, seed 0:
+   `0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`
+
+2. Same `sketch` with `0xca906ad4e08002c8` added:
+   `c80280e0d46a90ca94cadb7b18a6f31300b981bd5082f495875be397924387c34f11cfb629594e8337701e154cddf26ad4e30da6362f226f40d28015fe240765ffd04ff8c35ad077373eae1348fdd960`
+
+The encoding of channel information (short form):
+
+1. Encoding of short_channel_id `100x2x1` with no channel_update nor node_announcement, block_height 100:
+   `0xffffffffe08002c8`
+
+2. Adding channel_update from first node with timestamp 1574216405, block_height 100:
+   `0xffffffd4e08002c8`
+
+3. Adding a node_announcement from the first node with timestamp 1574216526, block_height 100:
+   `0xff907fd4e08002c8`
+
+4. Adding a channel_update from the first node with timestamp 1574216665, block_height 100:
+   `0xff906ad4e08002c8`
+
+5. Adding a node_announcement from the second node with timestamp 1574216692, block_height 100:
+   `0xca906ad4e08002c8`
+
+6. The same channel_updates and node_announcements at block_height 128:
+   `0xca24d5a9c10004c8`
+
+7. The same channel_updates and node_announcements applied to 101x32767x63 at blockheight 101:
+ `0xcd906ad4ffffffca`
+
+8. The same channel_updates and node_announcements applied to 4194304x32767x63 block_height 4194304:
+   `0xa45d7fffff800000`
+
+The encoding of channel information (long form):
+
+1. The same channel_updates and node_announcements applied to 101x32768x63, block_height 101:
+   `0xb723fc07e08000cb`
+
+2. The same channel_updates and node_announcements applied to 101x32767x64, block_height 101:
+   `0xb723fc08007fffcb`
+
+3. The same channel_updates and node_announcements applied to 101x2097151x4095, block_height 101:
+   `0xb723fdffffffffcb`
+
+4. The same channel_updates and node_announcements applied to 4194303x2097151x4095, block_height 4194303:
+	`0x46ffffffffffffff`
+
+Unenencodable short_channel_ids:
+
+1. Blockheight 101: 101x2097151x4096
+2. Blockheight 101: 101x2097152x4095
+3. Blockheight 4194304: 4194304x2097152x4095
+3. Blockheight 4194304: 4194304x2097151x4096
