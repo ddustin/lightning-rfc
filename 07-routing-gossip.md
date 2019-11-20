@@ -801,11 +801,16 @@ to be dictated by the specification.
 1. type: 267 (`gossip_set`) (`gossip_minisketch`)
 2. data:
     * [`chain_hash`:`chain_hash`]
+    * [`u32`:`number_of_channels`]
+    * [`u32`:`number_of_channel_updates`]
+    * [`u32`:`number_of_node_announcements`]
     * [`u32`:`block_number`]
     * [`u16`:`sketch_len`]
     * [`sketch_len*byte`:`sketch`]
     * [`u16`:`num_raw`]
     * [`num_raw*raw_scid_info`:`raw`]
+    * [`u16`:`num_excluded`]
+    * [`num_excluded*short_channel_id`:`excluded`]
 
 1. subtype: `raw_scid_info`
 2. data:
@@ -835,13 +840,18 @@ about each channel in the following manner:
 
 The timestamps are encoded into N bits as follows:
 
-1. if there is no `channel_update` or `node_announcement`, the encoding is N zero bits.
-2. otherwise, if the least-significant N bits of the timestamp are all 0, the encoding has the high bit set, and the remaning N-1 bits zero.
-3. otherwise, the least-significant N bits of the timestamp are used.
+1. if there is no `channel_update` or `node_announcement`, the encoding is N one bits.
+2. otherwise, the encoding is `timestamp % ((2^N) - 1)`.
 
 ### Requirements
 
 The sending node:
+    - MUST set `number_of_channels` to the number of entries in `sketch`.
+    - MUST set `number_of_channel_updates` to the number of `channel_update` represented in `sketch`.
+    - MUST set `number_of_node_announcements` to the number of `node_announcement` represented in `sketch`.
+	- MAY set `excluded` to indicate short_channel_ids it knows about but
+	  has not included in `sketch`.
+	- MUST NOT include any `excluded` short_channel_ids in `sketch`.
     - MUST set `block_number` to the highest block it has processed.
     - MUST set `sketch` to contain all the encoded channels as follows:
         - If the transaction index is less than 32768 and the output index
@@ -857,7 +867,7 @@ The sending node:
 The receiving node:
    - SHOULD compare the `sketch` and `raw` fields to selectively query
      gossip messages.
-   - SHOULD request all recent gossip if the sketch does not decode.
+   - SHOULD request all recent gossip if `sketch` does not decode.
 
 ## Rebroadcasting
 
