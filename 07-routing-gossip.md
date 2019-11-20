@@ -27,6 +27,7 @@ multiple `node_announcement` messages, in order to update the node information.
   * [The `channel_update` Message](#the-channel_update-message)
   * [Query Messages](#query-messages)
   * [Initial Sync](#initial-sync)
+  * [Set Reconciliation](#set-reconciliation)
   * [Rebroadcasting](#rebroadcasting)
   * [HTLC Fees](#htlc-fees)
   * [Pruning the Network View](#pruning-the-network-view)
@@ -290,9 +291,13 @@ The following `address descriptor` types are defined:
 ### Requirements
 
 The origin node:
+  - SHOULD NOT create a new `node_announcement` unless significant node details have changed.
+  - MUST NOT create a new `node_announcement` with a `timestamp` within 120 of a previous `node_announcement`.
   - MUST set `timestamp` to be greater than that of any previous
   `node_announcement` it has previously created.
-    - MAY base it on a UNIX timestamp.
+    - SHOULD base it on a UNIX timestamp.
+    - SHOULD ensure that the least-significant bit of `timestamp` differs
+      between successive `node_announcement` messages.
   - MUST set `signature` to the signature of the double-SHA256 of the entire
   remaining packet after `signature` (using the key given by `node_id`).
   - MAY set `alias` AND `rgb_color` to customize its appearance in maps and
@@ -440,6 +445,8 @@ or `node_id_2` otherwise.
 ### Requirements
 
 The origin node:
+  - SHOULD NOT create a new `channel_update` unless significant channel details have changed.
+  - MUST NOT create a new `channel_update` with a `timestamp` within 120 of a previous `channel_update` for this channel.
   - MAY create a `channel_update` to communicate the channel parameters to the
   channel peer, even though the channel has not yet been announced (i.e. the
   `announce_channel` bit was not set).
@@ -454,8 +461,8 @@ The origin node:
   `channel_announcement` message.
   - if the origin node is `node_id_1` in the message:
     - MUST set the `direction` bit of `channel_flags` to 0.
-  - otherwise:
-    - MUST set the `direction` bit of `channel_flags` to 1.
+  - otherwise: 
+   - MUST set the `direction` bit of `channel_flags` to 1.
   - if the `htlc_maximum_msat` field is present:
 	- MUST set the `option_channel_htlc_max` bit of `message_flags` to 1.
 	- MUST set `htlc_maximum_msat` to the maximum value it will send through this channel for a single HTLC.
@@ -476,6 +483,8 @@ The origin node:
   - MUST set `timestamp` to greater than 0, AND to greater than any
   previously-sent `channel_update` for this `short_channel_id`.
     - SHOULD base `timestamp` on a UNIX timestamp.
+    - SHOULD ensure that the least-significant bit of `timestamp` differs
+      between successive `channel_update` messages.
   - MUST set `cltv_expiry_delta` to the number of blocks it will subtract from
   an incoming HTLC's `cltv_expiry`.
   - MUST set `htlc_minimum_msat` to the minimum HTLC value (in millisatoshi)
@@ -484,7 +493,6 @@ The origin node:
   for any HTLC.
   - MUST set `fee_proportional_millionths` to the amount (in millionths of a
   satoshi) it will charge per transferred satoshi.
-  - SHOULD NOT create redundant `channel_update`s
 
 The receiving node:
   - if the `short_channel_id` does NOT match a previous `channel_announcement`,
@@ -775,6 +783,82 @@ A node:
       - SHOULD resume normal operation, as specified in the following
       [Rebroadcasting](#rebroadcasting) section.
 
+## Set Reconciliation
+
+The option `gossip_minisketch` enables set reconciliation of gossip.  This is
+a bandwidth-efficient way for nodes, once synchronized with peers, to maintain
+synchronization.
+
+The contents and serialization of the `sketch` field is defined by [libminiketch](#reference-3).
+
+Each node maintains a minisketch of current gossip.  Two minisketches of same
+field size can be compared to extract the differences, so gossip can be
+selectively requested: in the case where there are too many differences, a
+fallback to other synchronization methods is possible.  Since any minisketch
+can be truncated to a lesser size, the size of minisketch sent does not have
+to be dictated by the specification.
+
+1. type: 267 (`gossip_set`) (`gossip_minisketch`)
+2. data:
+    * [`chain_hash`:`chain_hash`]
+    * [`u32`:`block_number`]
+    * [`u16`:`sketch_len`]
+    * [`sketch_len*byte`:`sketch`]
+    * [`u16`:`num_raw`]
+    * [`num_raw*raw_scid_info`:`raw`]
+
+1. subtype: `raw_scid_info`
+2. data:
+    * [`short_channel_id`:`short_channel_id`]
+    * [`u32`:`update_timestamp1`]
+    * [`u32`:`update_timestamp2`]
+    * [`u32`:`node_timestamp1`]
+    * [`u32`:`node_timestamp2`]
+
+Because minisketch works well with 64-bit values, we encode the information
+about each channel in the following manner:
+
+1. The LSB is 0 for short-form, 1 for long-form.
+2. The next lowest N1 bits encode the block height.  N1 is the minimum number of bits to
+   encode `block_number`, eg. 591617 gives N1 of 20 bits.
+3. For short-form encoding:
+    1. The next lowest N2=15 bits encode the transaction index within the block.
+    2. The next lowest N3=6 bits encode the output index.
+4. For long-form encoding:
+    1. The next lowest N2=21 bits encode the transaction index within the block.
+    2. The next lowest N3=12 bits encode the output index.
+5. The remaining bits are used to encode the `channel_update` and `node_announcement` timestamps:
+    1. (63 - N1 - N2 - N3 + 3)/4 bits for `node_1`s last `channel_update`.
+    2. (63 - N1 - N2 - N3 + 2)/4 bits for `node_2`s last `channel_update`.
+    3. (63 - N1 - N2 - N3 + 1)/4 bits for `node_1`s last `node_announcement`.
+    4. (63 - N1 - N2 - N3)/4 bits for `node_2`s last `node_announcement`.
+
+The timestamps are encoded into N bits as follows:
+
+1. if there is no `channel_update` or `node_announcement`, the encoding is N zero bits.
+2. otherwise, if the least-significant N bits of the timestamp are all 0, the encoding has the high bit set, and the remaning N-1 bits zero.
+3. otherwise, the least-significant N bits of the timestamp are used.
+
+### Requirements
+
+The sending node:
+    - MUST set `block_number` to the highest block it has processed.
+    - MUST set `sketch` to contain all the encoded channels as follows:
+        - If the transaction index is less than 32768 and the output index
+          is less than 64:
+            - MUST encode it using short-form.
+        - Otherwise, if the transaction index is less than 2097152 and the
+          output index is less than 4096, and `block_number` is less than
+          4194304:
+            - MUST encode it using long-form.
+        - Otherwise:
+		    - MUST add it to the `raw` field.
+
+The receiving node:
+   - SHOULD compare the `sketch` and `raw` fields to selectively query
+     gossip messages.
+   - SHOULD request all recent gossip if the sketch does not decode.
+
 ## Rebroadcasting
 
 ### Requirements
@@ -795,8 +879,11 @@ A receiving node:
 A node:
   - if the `gossip_queries` feature is negotiated:
 	- MUST not send gossip until it receives `gossip_timestamp_filter`.
-  - SHOULD flush outgoing gossip messages once every 60 seconds, independently of
-  the arrival times of the messages.
+  - if the `gossip_minisketch` feature is negotiated:
+    - SHOULD send a `gossip_set` message once the number of changes to the set since it was last sent to this peer is greater or equal to the capacity of the set.
+  - otherwise:
+    - SHOULD flush outgoing gossip messages once every 60 seconds, independently of
+    the arrival times of the messages.
     - Note: this results in staggered announcements that are unique (not
     duplicated).
   - MAY re-announce its channels regularly.
@@ -989,6 +1076,7 @@ above.
 
 1. <a id="reference-1">[RFC 1950 "ZLIB Compressed Data Format Specification version 3.3](https://www.ietf.org/rfc/rfc1950.txt)</a>
 2. <a id="reference-2">[Maximum Compression Factor](https://zlib.net/zlib_tech.html)</a>
+3. <a id="reference-3">[Minisketch: a library for BCH-based set reconciliation](https://github.com/sipa/minisketch)</a>
 
 ![Creative Commons License](https://i.creativecommons.org/l/by/4.0/88x31.png "License CC-BY")
 <br>

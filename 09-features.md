@@ -26,6 +26,7 @@ These flags may only be used in the `init` message:
 | 3    | `initial_routing_sync`           | Indicates that the sending node needs a complete routing information dump | [BOLT #7][bolt07-sync]       |
 | 4/5  | `option_upfront_shutdown_script` | Commits to a shutdown scriptpubkey when opening channel                   | [BOLT #2][bolt02-open]       |
 | 6/7  | `gossip_queries`                 | More sophisticated gossip control                                         | [BOLT #7][bolt07-query]      |
+| 100/101  | `gossip_minisketch`          | Gossip synchronization via set reconciliation                             | [BOLT #7][bolt07-minisketch]   |
 
 ## Assigned `globalfeatures` flags
 
@@ -57,3 +58,4 @@ This work is licensed under a [Creative Commons Attribution 4.0 International Li
 [bolt04]: 04-onion-routing.md
 [bolt07-sync]: 07-routing-gossip.md#initial-sync
 [bolt07-query]: 07-routing-gossip.md#query-messages
+[bolt07-minisketch]: 07-routing-gossip.md#set-reconciliation
