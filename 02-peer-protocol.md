@@ -1329,20 +1329,15 @@ messages are), they are independent of requirements here.
     1. type: 1 (`next_to_send`)
     2. data:
         * [`tu64`:`commitment_number`]
-    1. type: 3 (`desired_type`)
+    1. type: 3 (`desired_channel_type`)
     2. data:
-        * [`channel_type`:`type`]
-    1. type: 5 (`current_type`)
+        * [`...*byte`:`type`]
+    1. type: 5 (`current_channel_type`)
     2. data:
-        * [`channel_type`:`type`]
-    1. type: 7 (`upgradable`)
+        * [`...*byte`:`type`]
+    1. type: 7 (`upgradable_channel_type`)
     2. data:
-        * [`...*channel_type`:`upgrades`]
-
-1. subtype: `channel_type`
-2. data:
-    * [`u16`:`len`]
-    * [`len*byte`:`features`]
+        * [`...*byte`:`type`]
 
 `next_commitment_number`: A commitment number is a 48-bit
 incrementing counter for each commitment transaction; counters
@@ -1569,38 +1564,31 @@ channel upgraded and the other not.  But this will eventually be
 resolved: the channel cannot progress until both sides have received
 `channel_reestablish` anyway.
 
-Channel features are explicitly enumerated as `channel_type`
-bitfields, using odd features bits.  The currently defined types are:
-  - no features (no bits set)
-  - `option_static_remotekey` (bit 13)
-  - `option_anchor_outputs` and `option_static_remotekey` (bits 21 and 13)
-  - `option_anchors_zero_fee_htlc_tx` and `option_static_remotekey` (bits 23 and 13)
-
 #### Requirements
 
 A node sending `channel_reestablish`, if it supports upgrading channels:
   - MUST set `next_to_send` the commitment number of the next `commitment_signed` it expects to send.
   - if it initiated the channel:
-    - MUST set `desired_type` to the channel_type it wants for the channel.
+    - MUST set `desired_channel_type` to the defined channel type it wants for the channel.
   - otherwise:
-    - MUST set `current_type` to the current channel_type of the channel.
-    - MUST set `upgradable` to the channel types it could change to.
-    - MAY not set `upgradable` if it would be empty.
+    - MUST set `current_channel_type` to the current channel type of the channel.
+    - If it sets `upgradable_channel_type`:
+      - MUST set it to a defined channel type it could change to.
 
 A node receiving `channel_reestablish`:
   - if it has to retransmit `commitment_signed` or `revoke_and_ack`:
-    - MUST consider the channel feature change failed.
+    - MUST consider the channel type change failed.
   - if `next_to_send` is missing, or not equal to the `next_commitment_number` it sent:
-    - MUST consider the channel feature change failed.
+    - MUST consider the channel type change failed.
   - if updates are pending on either sides' commitment transaction:
-    - MUST consider the channel feature change failed.
+    - MUST consider the channel type change failed.
   - otherwise:
-    - if `desired_type` matches `current_type` or any `upgradable` `upgrades`:
-      - MUST consider the channel type to be `desired_type`.
+    - if `desired_channel_type` matches `current_channel_type` or `upgradable_channel_type`:
+      - MUST consider the channel type to be `desired_channel_type`.
     - otherwise:
-      - MUST consider the channel feature change failed.
-      - if there is a `current_type` field:
-        - MUST consider the channel type to be `current_type`.
+      - MUST consider the channel type change failed.
+      - if there is a `current_channel_type` field:
+        - MUST consider the channel type to be `current_channel_type`.
 
 #### Rationale
 
@@ -1618,17 +1606,17 @@ are attempted (all of which require successful exchange of
 `channel_reestablish` messages).
 
 On reconnect, if only the initiator is upgraded, it will reflect this
-upgrade in the next `desired_type`, causing the non-initiator to
+upgrade in the next `desired_channel_type`, causing the non-initiator to
 upgrade.  If only the non-initiator is upgraded, it will be reflected
-in `current_type` and the initiator will consider itself upgraded.
+in `current_channel_type` and the initiator will consider itself upgraded.
 
-There can be desynchronization across multiple upgrades.  Both nodes
-start on channel_type A, initiator sets `desired_type` B, receives
-`channel_reestablish` from A which has B in `upgradable`, but B
-doesn't receive `channel_reestablish`.  On reconnect, initiator tries
-to upgrade again, setting `desired_type` to C, which is not in B's
-`upgradable` so fails.  This is why, on such a failed upgrade, the
-initiator considers the `current_type` given by the non-initiator to
+There can be desynchronization across multiple upgrades.  Both A and B nodes
+start on channel_type T1, A sets `desired_channel_type` T2, receives
+`channel_reestablish` from B which has `upgradable_channel_type` T2, but B
+doesn't receive `channel_reestablish`.  On reconnect, A tries
+to upgrade again, setting `desired_channel_type` to T3, which is not equal
+to B's `upgradable_channel_type` so fails.  This is why, on such a failed upgrade, the
+initiator considers the `current_channel_type` given by the non-initiator to
 be canonical.
 
 # Authors
