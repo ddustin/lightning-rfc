@@ -390,3 +390,6 @@ anysegwit
 quiesce
 quiescing
 SomeThing
+retransmissions
+upgradable
+desynchronization
