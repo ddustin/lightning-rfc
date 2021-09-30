@@ -510,6 +510,7 @@ channel by indicating that "SomeThing Fundamental is Underway".
 ### Requirements
 
 The sender of `stfu`:
+  - MUST NOT send `stfu` unless `option_quiesce` is negotiated.
   - MUST NOT send `stfu` if any of the sender's htlc additions, htlc removals
     or fee updates are pending for either peer.
   - MUST NOT send `stfu` twice.
