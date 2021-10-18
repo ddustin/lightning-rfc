@@ -491,7 +491,7 @@ The sender:
   - MUST set `next_per_commitment_point` to the per-commitment point to be used
   for commitment transaction #1, derived as specified in
   [BOLT #3](03-transactions.md#per-commitment-secret-requirements).
-  - if `option_scid_alias_only` was negotiated:
+  - if `option_scid_alias` was negotiated:
     - MUST set `short_channel_id` `alias`.
   - otherwise:
     - SHOULD set `short_channel_id` `alias`.
@@ -503,7 +503,7 @@ The sender:
       - MUST set `alias` to a value not related to the real `short_channel_id`.
     - MUST NOT send the same `alias` for multiple peers.
     - MUST always recognize the `alias` as a `short_channel_id` for incoming HTLCs to this channel.
-    - if `option_scid_alias_only` was negotiated:
+    - if `option_scid_alias` was negotiated and `announce_channel` bit was not set in both `open_channel` and `accept_channel`:
       - MUST NOT allow incoming HTLCs to this channel using the real `short_channel_id`
     - MAY send multiple `funding_locked` messages with different `alias` values.
   - otherwise:
@@ -518,7 +518,7 @@ A non-funding node (fundee):
 
 The receiver:
   - MAY use any of the `alias` it received, in BOLT 11 `r` fields.
-  - if `option_scid_alias_only` was negotiated:
+  - if `option_scid_alias` was negotiated and the `announce_channel` bit was not set in both `open_channel` and `accept_channel`:
     - MUST NOT use the real `short_channel_id` in BOLT 11 `r` fields.
 
 From the point of waiting for `funding_locked` onward, either node MAY
