@@ -498,7 +498,6 @@ The sender:
   - if it sets `alias`:
     - if the `announce_channel` bit was set in both `open_channel` and `accept_channel`:
       - SHOULD initially set `alias` to value not related to the real `short_channel_id`.
-      - SHOULD re-transmit `funding_locked` with the real `short_channel_id` once the channel is confirmed.
     - otherwise:
       - MUST set `alias` to a value not related to the real `short_channel_id`.
     - MUST NOT send the same `alias` for multiple peers.
@@ -1417,7 +1416,7 @@ A node:
     - MUST retransmit `funding_locked`.
   - otherwise:
     - MUST NOT retransmit `funding_locked`, but MAY send `funding_locked` with
-	  a different `short_channel_id` `alias` field.
+      a different `short_channel_id` `alias` field.
   - upon reconnection:
     - MUST ignore any redundant `funding_locked` it receives.
   - if `next_commitment_number` is equal to the commitment number of
