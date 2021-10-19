@@ -496,13 +496,13 @@ The sender:
   - otherwise:
     - SHOULD set `short_channel_id` `alias`.
   - if it sets `alias`:
-    - if the `announce_channel` bit was set in both `open_channel` and `accept_channel`:
+    - if the `announce_channel` bit was set in `open_channel`:
       - SHOULD initially set `alias` to value not related to the real `short_channel_id`.
     - otherwise:
       - MUST set `alias` to a value not related to the real `short_channel_id`.
     - MUST NOT send the same `alias` for multiple peers.
     - MUST always recognize the `alias` as a `short_channel_id` for incoming HTLCs to this channel.
-    - if `option_scid_alias` was negotiated and `announce_channel` bit was not set in both `open_channel` and `accept_channel`:
+    - if `option_scid_alias` was negotiated and `announce_channel` bit was not set in `open_channel`:
       - MUST NOT allow incoming HTLCs to this channel using the real `short_channel_id`
     - MAY send multiple `funding_locked` messages with different `alias` values.
   - otherwise:
@@ -517,7 +517,7 @@ A non-funding node (fundee):
 
 The receiver:
   - MAY use any of the `alias` it received, in BOLT 11 `r` fields.
-  - if `option_scid_alias` was negotiated and the `announce_channel` bit was not set in both `open_channel` and `accept_channel`:
+  - if `option_scid_alias` was negotiated and the `announce_channel` bit was not set in `open_channel`:
     - MUST NOT use the real `short_channel_id` in BOLT 11 `r` fields.
 
 From the point of waiting for `funding_locked` onward, either node MAY
