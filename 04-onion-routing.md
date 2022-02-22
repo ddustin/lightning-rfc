@@ -202,6 +202,31 @@ This is formatted according to the Type-Length-Value format defined in [BOLT #1]
     2. data:
         * [`...*byte`:`payment_metadata`]
 
+`short_channel_id` is the ID of the outgoing channel used to route the
+message; the receiving peer should operate the other end of this channel.
+
+`amt_to_forward` is the amount, in millisatoshis, to forward to the
+next receiving peer specified within the routing information, or for
+the final destination.
+
+For non-final nodes, this includes the origin node's computed _fee_ for the
+receiving peer, calculated according to the receiving peer's advertised fee
+schema (as described in [BOLT #7](07-routing-gossip.md#htlc-fees)).
+
+`outgoing_cltv_value` is the CLTV value that the _outgoing_ HTLC
+carrying the packet should have.  Inclusion of this field allows a hop
+to both authenticate the information specified by the origin node, and
+the parameters of the HTLC forwarded, and ensure the origin node is
+using the current `cltv_expiry_delta` value/
+
+If the values don't correspond, this indicates that either a
+forwarding node has tampered with the intended HTLC values or that the
+origin node has an obsolete `cltv_expiry_delta` value.
+
+The requirements ensure consistency in responding to an unexpected
+`outgoing_cltv_value`, whether it is the final node or not, to avoid
+leaking its position in the route.
+
 ### Requirements
 
 The writer:
