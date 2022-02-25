@@ -217,7 +217,7 @@ schema (as described in [BOLT #7](07-routing-gossip.md#htlc-fees)).
 carrying the packet should have.  Inclusion of this field allows a hop
 to both authenticate the information specified by the origin node, and
 the parameters of the HTLC forwarded, and ensure the origin node is
-using the current `cltv_expiry_delta` value/
+using the current `cltv_expiry_delta` value.
 
 If the values don't correspond, this indicates that either a
 forwarding node has tampered with the intended HTLC values or that the
