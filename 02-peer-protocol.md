@@ -358,6 +358,7 @@ the byte size of the input and output counts on the transaction to one (1).
     * [`sha256`:`txid`]
     * [`u16`:`num_witnesses`]
     * [`num_witnesses*witness_stack`:`witness_stack`]
+    * [`txsigs_tlvs`:`tlvs`]
 
 1. subtype: `witness_stack`
 2. data:
@@ -368,6 +369,12 @@ the byte size of the input and output counts on the transaction to one (1).
 2. data:
     * [`u16`:`len`]
     * [`len*byte`:`witness`]
+
+1. `tlv_stream`: `txsigs_tlvs`
+2. types:
+   1. type: 0 (`funding_outpoint_sig`)
+   2. data:
+       * [`...*byte`:`sig`]
 
 #### Requirements
 
@@ -552,7 +559,10 @@ that will be used to construct channel authentication proofs.
 
 
         +-------+                              +-------+
-        |       |--(1)---  open_channel  ----->|       |
+        |       |--(1)---  
+	
+	
+	----->|       |
         |       |<-(2)--  accept_channel  -----|       |
         |       |                              |       |
         |   A   |--(3)--  funding_created  --->|   B   |
