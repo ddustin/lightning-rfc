@@ -345,6 +345,9 @@ funding transaction and both versions of the commitment transaction.
     1. type: 1 (`channel_type`)
     2. data:
         * [`...*byte`:`type`]
+    1. type: 2 (`next_local_nonce`)
+    2. data:
+      * [`66*byte`:`public_nonce`]
 
 #### Requirements
 
@@ -387,6 +390,14 @@ signature, via `funding_signed`, it will broadcast the funding transaction.
     * [`sha256`:`funding_txid`]
     * [`u16`:`funding_output_index`]
     * [`signature`:`signature`]
+    * [`funding_created_tlvs`:`tlvs`]
+
+1. `tlv_stream`: `funding_created_tlvs`
+2. types:
+   1. type: 0 (`partial_signature_with_nonce`)
+   2. data:
+      * [`32*byte`:`partial_signature`]
+      * [`66*byte`:`public_nonce`]
 
 #### Requirements
 
@@ -428,6 +439,14 @@ This message introduces the `channel_id` to identify the channel. It's derived f
 2. data:
     * [`channel_id`:`channel_id`]
     * [`signature`:`signature`]
+    * [`funding_signed_tlvs`:`tlvs`]
+
+1. `tlv_stream`: `funding_signed_tlvs`
+2. types:
+   1. type: 0 (`partial_signature_with_nonce`)
+   2. data:
+      * [`32*byte`:`partial_signature`]
+      * [`66*byte`:`public_nonce`]
 
 #### Requirements
 
@@ -491,6 +510,9 @@ accepter would usually wait until the funding has reached the `minimum_depth` as
     1. type: 1 (`short_channel_id`)
     2. data:
         * [`short_channel_id`:`alias`]
+    1. type: 2 (`next_local_nonce`)
+    2. data:
+        * [`66*byte`:`public_nonce`]
 
 #### Requirements
 
@@ -594,6 +616,13 @@ along with the `scriptpubkey` it wants to be paid to.
    * [`channel_id`:`channel_id`]
    * [`u16`:`len`]
    * [`len*byte`:`scriptpubkey`]
+   * [`shutdown_tlvs`:`tlvs`]
+
+1. `tlv_stream`: `shutdown_tlvs`
+2. types:
+    1. type: 0 (`shutdown_nonce`)
+    2. data:
+        * [`66*byte`:`nonces`]
 
 #### Requirements
 
@@ -692,6 +721,9 @@ reply with the same value (completing after three messages).
     2. data:
         * [`u64`:`min_fee_satoshis`]
         * [`u64`:`max_fee_satoshis`]
+    1. type: 2 (`partial_signature`)
+    2. data:
+        * [`32*byte`: `partial_signature`]
 
 #### Requirements
 
@@ -1277,6 +1309,13 @@ The description of key derivation is in [BOLT #3](03-transactions.md#key-derivat
    * [`channel_id`:`channel_id`]
    * [`32*byte`:`per_commitment_secret`]
    * [`point`:`next_per_commitment_point`]
+   * [`revoke_and_ack_tlvs`:`tlvs`]
+
+1. `tlv_stream`: `revoke_and_ack_tlvs`
+2. types:
+   1. type: 0 (`next_local_nonce`)
+   2. data:
+      * [`66*byte`: `public_nonce`]
 
 #### Requirements
 
@@ -1395,6 +1434,13 @@ messages are), they are independent of requirements here.
    * [`u64`:`next_revocation_number`]
    * [`32*byte`:`your_last_per_commitment_secret`]
    * [`point`:`my_current_per_commitment_point`]
+   * [`channel_reestablish_tlvs`:`tlvs`]
+
+1. `tlv_stream`: `channel_reestablish_tlvs`
+2. types:
+    1. type: 4 (`next_local_nonce`)
+    2. data:
+        * [`66*byte`: `public_nonce`]
 
 `next_commitment_number`: A commitment number is a 48-bit
 incrementing counter for each commitment transaction; counters
